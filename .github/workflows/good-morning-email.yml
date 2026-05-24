@@ -87,7 +87,7 @@ jobs:
         run: |
           HTTP_STATUS=$(curl -s -o /tmp/resend_response.json -w "%{http_code}" \
             -X POST https://api.resend.com/emails \
-            -H "Authorization: Bearer ${{ secrets.RESEND_API_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.re_JWh19CHZ_9D7aTWag3iCs8ANKKBFw43g4}}" \
             -H "Content-Type: application/json" \
             -d '{
               "from": "Good Morning <onboarding@resend.dev>",
