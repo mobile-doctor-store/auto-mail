@@ -1,0 +1,107 @@
+# .github/workflows/good-morning-email.yml
+#
+# Sends a beautiful Good Morning email every day at 6:00 AM IST
+# Uses Resend.com API — free, no SMTP, no app passwords needed
+#
+# GitHub Secrets required:
+#   RESEND_API_KEY     → your API key from resend.com/api-keys
+#   RECIPIENT_EMAIL    → email address to receive the message
+
+name: 🌅 Daily Good Morning Email
+
+on:
+  schedule:
+    - cron: '30 0 * * *'   # 6:00 AM IST (00:30 UTC) every day
+  workflow_dispatch:        # manual trigger from GitHub Actions UI
+
+jobs:
+  send-morning-email:
+    name: Send Good Morning Email
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ── Build dynamic content ─────────────────────────────────────────
+      - name: 📅 Prepare content
+        id: content
+        run: |
+          DATE=$(TZ="Asia/Kolkata" date "+%A, %d %B %Y")
+          TIME=$(TZ="Asia/Kolkata" date "+%I:%M %p")
+          DOM=$(TZ="Asia/Kolkata" date "+%d" | sed 's/^0//')
+          DAY=$(TZ="Asia/Kolkata" date "+%u")
+
+          case $DAY in
+            1) GREETING="Happy Monday! Start the week strong 💪" ;;
+            2) GREETING="Happy Tuesday! Keep building momentum 🚀" ;;
+            3) GREETING="Happy Wednesday! Halfway there 🌟" ;;
+            4) GREETING="Happy Thursday! Almost at the weekend 🔥" ;;
+            5) GREETING="Happy Friday! Weekend is almost here 🎉" ;;
+            6) GREETING="Happy Saturday! Enjoy your day off 😊" ;;
+            7) GREETING="Happy Sunday! Rest and recharge 🌿" ;;
+          esac
+
+          QUOTES=(
+            "The secret of getting ahead is getting started. — Mark Twain"
+            "It always seems impossible until it is done. — Nelson Mandela"
+            "Do not watch the clock. Do what it does — keep going. — Sam Levenson"
+            "The future depends on what you do today. — Mahatma Gandhi"
+            "Believe you can and you are halfway there. — Theodore Roosevelt"
+            "Start where you are. Use what you have. Do what you can. — Arthur Ashe"
+            "Dream big and dare to fail. — Norman Vaughan"
+            "The only way to do great work is to love what you do. — Steve Jobs"
+            "In the middle of every difficulty lies opportunity. — Albert Einstein"
+            "It does not matter how slowly you go as long as you do not stop. — Confucius"
+            "Everything you have ever wanted is on the other side of fear. — George Addair"
+            "You miss 100 percent of the shots you do not take. — Wayne Gretzky"
+            "Whether you think you can or you cannot, you are right. — Henry Ford"
+            "The only limit to our realization of tomorrow is our doubts of today. — FDR"
+            "Do what you can with what you have where you are. — Theodore Roosevelt"
+            "Do not let yesterday take up too much of today. — Will Rogers"
+            "Opportunities do not happen. You create them. — Chris Grosser"
+            "Success usually comes to those too busy to be looking for it. — Thoreau"
+            "You will face many defeats in life but never let yourself be defeated. — Maya Angelou"
+            "Act as if what you do makes a difference. It does. — William James"
+            "Try not to become a person of success but rather a person of value. — Einstein"
+            "The harder I work the more luck I seem to have. — Thomas Jefferson"
+            "Two roads diverged in a wood and I took the one less traveled by. — Robert Frost"
+            "Always remember you are absolutely unique just like everyone else. — Margaret Mead"
+            "The way to get started is to quit talking and begin doing. — Walt Disney"
+            "Spread love everywhere you go. — Mother Teresa"
+            "When you reach the end of your rope tie a knot and hang on. — FDR"
+            "Life is what happens when you are busy making other plans. — John Lennon"
+            "Do not go where the path may lead. Go where there is no path. — Emerson"
+            "You are never too old to set another goal or dream a new dream. — C.S. Lewis"
+            "Hardships often prepare ordinary people for an extraordinary destiny. — C.S. Lewis"
+          )
+
+          IDX=$(( (DOM - 1) % ${#QUOTES[@]} ))
+          QUOTE="${QUOTES[$IDX]}"
+
+          echo "DATE=$DATE"         >> $GITHUB_OUTPUT
+          echo "TIME=$TIME"         >> $GITHUB_OUTPUT
+          echo "GREETING=$GREETING" >> $GITHUB_OUTPUT
+          echo "QUOTE=$QUOTE"       >> $GITHUB_OUTPUT
+
+      # ── Send via Resend API ───────────────────────────────────────────
+      - name: 📧 Send email via Resend
+        run: |
+          HTTP_STATUS=$(curl -s -o /tmp/resend_response.json -w "%{http_code}" \
+            -X POST https://api.resend.com/emails \
+            -H "Authorization: Bearer ${{ secrets.RESEND_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "from": "Good Morning <onboarding@resend.dev>",
+              "to": ["${{ secrets.RECIPIENT_EMAIL }}"],
+              "subject": "🌅 Good Morning, Kundan! — ${{ steps.content.outputs.DATE }}",
+              "html": "<!DOCTYPE html><html><head><meta charset=UTF-8><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;background:#f0f4f8;padding:20px}.wrap{max-width:580px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.10)}.top{background:#f97316;padding:36px 28px;text-align:center}.top h1{color:#fff;font-size:28px;margin-bottom:6px}.top p{color:rgba(255,255,255,.88);font-size:14px}.sun{font-size:48px;margin-bottom:10px}.body{padding:28px}.day{font-size:20px;font-weight:bold;color:#1e293b;margin-bottom:6px}.time{font-size:13px;color:#64748b;margin-bottom:22px}.quote-wrap{background:#fff7ed;border-left:4px solid #f97316;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:22px}.quote-text{font-size:15px;color:#374151;font-style:italic;line-height:1.65}.site-wrap{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 18px;margin-bottom:22px}.site-title{font-size:13px;font-weight:bold;color:#15803d;margin-bottom:4px}.site-link{font-size:13px;color:#16a34a;text-decoration:none}.msg{font-size:14px;color:#374151;line-height:1.7}.foot{background:#f8fafc;padding:16px 28px;text-align:center;border-top:1px solid #e2e8f0}.foot p{font-size:11px;color:#94a3b8}</style></head><body><div class=wrap><div class=top><div class=sun>🌅</div><h1>Good Morning, Kundan!</h1><p>${{ steps.content.outputs.DATE }} · ${{ steps.content.outputs.TIME }} IST</p></div><div class=body><p class=day>${{ steps.content.outputs.GREETING }}</p><p class=time style=margin-bottom:18px>Here is your thought for the day:</p><div class=quote-wrap><p class=quote-text>${{ steps.content.outputs.QUOTE }}</p></div><div class=site-wrap><p class=site-title>Your site is being monitored daily</p><a class=site-link href=https://www.mobiledoctor.org.in>mobiledoctor.org.in</a></div><p class=msg>Make today count. Every small step forward is progress.</p></div><div class=foot><p>Sent automatically every morning at 6:00 AM IST · GitHub Actions</p></div></div></body></html>"
+            }')
+
+          cat /tmp/resend_response.json
+          echo ""
+
+          if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 201 ]; then
+            echo "✅ Email sent successfully! (HTTP $HTTP_STATUS)"
+          else
+            echo "❌ Failed to send email (HTTP $HTTP_STATUS)"
+            exit 1
+          fi
